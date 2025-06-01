@@ -1,4 +1,6 @@
 #include "maxrects_packer.h"
+#include <algorithm>   
+#include <iterator>    
 
 namespace MaxRects {
 
@@ -61,26 +63,22 @@ namespace MaxRects {
 		
 		
 		return bins.back()->add(std::move(rect));
-	}
-	template<typename Numeric, typename RectType>
+	}	template<typename Numeric, typename RectType>
 	auto MaxRectsPacker<Numeric, RectType>::add_array(std::span<const RectType> rects) -> void {
+		if (rects.empty()) {
+			return;
+		}
 		auto sorted_rects = std::vector<RectType>{};
 		sorted_rects.reserve(rects.size());
-		
-		for (const auto& rect : rects) {
-			sorted_rects.emplace_back(rect);
+		std::transform(rects.begin(), rects.end(), std::back_inserter(sorted_rects),
+			[](const auto& rect) -> RectType { return rect; 
+		});
+		sort_rects(sorted_rects);
+		if (bins.empty() && !sorted_rects.empty()) {
+			bins.reserve(1 + sorted_rects.size() / 16);
 		}
-		
-		if (!options.tag || options.exclusive_tag) {
-			sort_rects(sorted_rects);
-			for (auto& rect : sorted_rects) {
-				add(std::move(rect));
-			}
-		} else {
-			sort_rects(sorted_rects);
-			for (auto& rect : sorted_rects) {
-				add(std::move(rect));
-			}
+		for (auto& rect : sorted_rects) {
+			add(std::move(rect));
 		}
 	}
 
@@ -165,7 +163,6 @@ namespace MaxRects {
 		return (rect.w <= width && rect.h <= height) ||
 			(options.allow_rotation && rect.w <= height && rect.h <= width);
 	}
-
 	template<typename Numeric, typename RectType>
 	auto MaxRectsPacker<Numeric, RectType>::sort_rects(std::vector<RectType>& rects) const -> void {
 		std::sort(rects.begin(), rects.end(), [this](const auto& a, const auto& b) {
@@ -176,7 +173,14 @@ namespace MaxRects {
 			}
 		});
 	}
-
+	
+	template<typename Numeric, typename RectType>
+	auto MaxRectsPacker<Numeric, RectType>::reserve(std::size_t capacity) -> void {
+		bins.reserve(capacity / 16 + 1);
+		if (!bins.empty()) {
+			bins[0]->rects.reserve(capacity);
+		}
+	}
 
 	template class MaxRectsPacker<float, Rectangle<float>>;
 

@@ -323,17 +323,36 @@ namespace MaxRects {
 			return max_b < max_a;
 		});
 		auto removed_indices = std::vector<std::size_t>{};
+		removed_indices.reserve(this->rects.size());
 		for (auto idx : indices) {
 			if (!place(this->rects[idx]).has_value()) {
 				unpacked.push_back(this->rects[idx]);
 				removed_indices.push_back(idx);
 			}
 		}
-		std::sort(removed_indices.begin(), removed_indices.end(), std::greater<std::size_t>());
-		for (auto idx : removed_indices) {
-			this->rects.erase(this->rects.begin() + idx);
-		}
 		
+		if (removed_indices.empty()) {
+			return unpacked;
+		}
+		std::sort(removed_indices.begin(), removed_indices.end(), std::greater<std::size_t>());
+		if (removed_indices.size() > this->rects.size() / 2) {
+			auto kept_rects = std::vector<RectType>{};
+			kept_rects.reserve(this->rects.size() - removed_indices.size());
+			auto next_remove_idx = std::size_t{0};
+			for (auto i = std::size_t{0}; i < this->rects.size(); ++i) {
+				if (next_remove_idx < removed_indices.size() && i == removed_indices[next_remove_idx]) {
+					++next_remove_idx;
+				} else {
+					kept_rects.push_back(std::move(this->rects[i]));
+				}
+			}
+			
+			this->rects = std::move(kept_rects);
+		} else {
+			for (auto idx : removed_indices) {
+				this->rects.erase(this->rects.begin() + idx);
+			}
+		}
 		return unpacked;
 	}
 
@@ -504,15 +523,45 @@ namespace MaxRects {
 
 	template<typename RectType, typename Numeric>
 	auto MaxRectsBin<RectType, Numeric>::prune_free_list() -> void {
-		for (auto i = this->free_rectangles.size(); i-- > std::size_t{0};) {
+		if (this->free_rectangles.size() <= 1) {
+			return;
+		}
+		auto to_delete = std::vector<bool>(this->free_rectangles.size(), false);
+		auto delete_count = std::size_t{0};
+		
+		for (auto i = std::size_t{0}; i < this->free_rectangles.size(); ++i) {
+			if (to_delete[i]) {
+				continue;
+			}
 			for (auto j = i + std::size_t{1}; j < this->free_rectangles.size(); ++j) {
-				if (this->free_rectangles[j].contains(this->free_rectangles[i])) {
-					this->free_rectangles.erase(this->free_rectangles.begin() + i);
-					break;
+				if (to_delete[j]) {
+					continue;
 				}
-				if (this->free_rectangles[i].contains(this->free_rectangles[j])) {
-					this->free_rectangles.erase(this->free_rectangles.begin() + j);
-					--j;
+				if (this->free_rectangles[j].contains(this->free_rectangles[i])) {
+					to_delete[i] = true;
+					++delete_count;
+					break;   
+				} else if (this->free_rectangles[i].contains(this->free_rectangles[j])) {
+					to_delete[j] = true;
+					++delete_count;
+				}
+			}
+		}
+		if (delete_count > 0) {
+			if (delete_count > this->free_rectangles.size() / 2) {
+				auto new_free_rects = std::vector<Rectangle<Numeric>>{};
+				new_free_rects.reserve(this->free_rectangles.size() - delete_count);
+				for (auto i = std::size_t{0}; i < this->free_rectangles.size(); ++i) {
+					if (!to_delete[i]) {
+						new_free_rects.push_back(std::move(this->free_rectangles[i]));
+					}
+				}
+				this->free_rectangles = std::move(new_free_rects);
+			} else {
+				for (auto i = this->free_rectangles.size(); i-- > 0;) {
+					if (to_delete[i]) {
+						this->free_rectangles.erase(this->free_rectangles.begin() + i);
+					}
 				}
 			}
 		}

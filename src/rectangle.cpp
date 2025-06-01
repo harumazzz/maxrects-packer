@@ -1,4 +1,4 @@
-#include "Rectangle.h"
+#include "rectangle.h"
 
 namespace MaxRects {
 
@@ -51,7 +51,8 @@ namespace MaxRects {
 			y = new_y;
 			++dirty_counter;
 		}
-	}
+	}	
+	
 	template<typename Numeric>
 	constexpr auto Rectangle<Numeric>::set_rotation(bool new_rot) noexcept -> void {
 		if (!allow_rotation) return;

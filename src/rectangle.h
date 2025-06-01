@@ -4,31 +4,49 @@
 #include <any>
 #include <type_traits>
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4201)
+#endif
+
 namespace MaxRects {
 	template<typename T>
 	concept number_type = std::is_arithmetic_v<T>;
-
 	template<typename Numeric = float>
 	struct Rectangle {
 		Numeric w{Numeric{}};
 		Numeric h{Numeric{}};
 		Numeric x{Numeric{}};
 		Numeric y{Numeric{}};
-		bool oversized{false};
-		bool rot{false};
-		bool allow_rotation{false};
-		std::any data{};
-		std::size_t dirty_counter{std::size_t{}};
+		std::any data{};   
+		std::size_t dirty_counter{std::size_t{0}};
 
-		constexpr Rectangle() = default;
+		struct {
+			bool oversized : 1;
+			bool rot : 1;
+			bool allow_rotation : 1;
+		};
+		
+		constexpr Rectangle() {
+			oversized = false;
+			rot = false;
+			allow_rotation = false;
+		}
 		
 		constexpr Rectangle(Numeric width, Numeric height, Numeric x_pos = Numeric{}, Numeric y_pos = Numeric{}, 
 						bool rotation = false, bool allow_rot = false) noexcept
-			: w{width}, h{height}, x{x_pos}, y{y_pos}, rot{rotation}, allow_rotation{allow_rot} {}
+			: w{width}, h{height}, x{x_pos}, y{y_pos} {
+			oversized = false;
+			rot = rotation;
+			allow_rotation = allow_rot;
+		}
 
 		constexpr Rectangle(Numeric width, Numeric height, std::any user_data, Numeric x_pos = Numeric{}, Numeric y_pos = Numeric{}, 
 						bool rotation = false, bool allow_rot = false) noexcept
-			: w{width}, h{height}, x{x_pos}, y{y_pos}, rot{rotation}, allow_rotation{allow_rot}, data{std::move(user_data)} {}
+			: w{width}, h{height}, x{x_pos}, y{y_pos}, data{std::move(user_data)} {
+			oversized = false;
+			rot = rotation;
+			allow_rotation = allow_rot;
+		}
 
 		Rectangle(const Rectangle&) = default;
 		Rectangle(Rectangle&&) noexcept = default;

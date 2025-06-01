@@ -40,9 +40,11 @@ namespace MaxRects {
 
 		[[nodiscard]] auto is_dirty() const noexcept -> bool;
 
-		[[nodiscard]] auto get_all_rects() const -> std::vector<RectType>;
+		[[nodiscard]]		auto get_all_rects() const -> std::vector<RectType>;
 		
 		auto get_all_rects_into(std::vector<RectType>& output) const -> void;
+		
+		auto reserve(std::size_t capacity) -> void;
 
 	private:
 		std::size_t current_bin_index{};

@@ -1,5 +1,5 @@
 #include "simple_test.h"
-#include "../src/Rectangle.h"
+#include "../src/rectangle.h"
 #include <any>
 
 using namespace MaxRects;

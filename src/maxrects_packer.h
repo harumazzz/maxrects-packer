@@ -20,10 +20,15 @@ namespace MaxRects {
 
 		explicit MaxRectsPacker(Numeric w = Numeric{}, Numeric h = Numeric{},
 							Numeric pad = Numeric{}, const PackingOptions<Numeric>& opts = {});
-
 		auto add(Numeric rect_width, Numeric rect_height, std::any data = {}) -> RectType*;
 
-		auto add(const RectType& rect) -> RectType*;    auto add_array(const RectType* rects_ptr, std::size_t count) -> void;
+		auto add(const RectType& rect) -> RectType*;
+		
+		auto add(RectType&& rect) -> RectType*;
+
+		auto add_array(std::span<const RectType> rects) -> void;
+
+		auto add_array(const RectType* rects_ptr, std::size_t count) -> void;
 
 		auto reset() -> void;
 
@@ -35,7 +40,11 @@ namespace MaxRects {
 
 		[[nodiscard]] auto is_dirty() const noexcept -> bool;
 
-		[[nodiscard]] auto get_all_rects() const -> std::vector<RectType>;
+		[[nodiscard]]		auto get_all_rects() const -> std::vector<RectType>;
+		
+		auto get_all_rects_into(std::vector<RectType>& output) const -> void;
+		
+		auto reserve(std::size_t capacity) -> void;
 
 	private:
 		std::size_t current_bin_index{};

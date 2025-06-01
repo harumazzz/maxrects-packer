@@ -5,6 +5,7 @@
 #include <cmath>
 #include <optional>
 #include <limits>
+#include <span>
 
 namespace MaxRects {
 
@@ -23,8 +24,12 @@ namespace MaxRects {
 
 		explicit MaxRectsBin(Numeric max_w = edge_max_value<Numeric>, Numeric max_h = edge_max_value<Numeric>,
 							Numeric padding = Numeric{}, const PackingOptions<Numeric>& opts = {});    auto add(const RectType& rect) -> RectType* override;
+		
+		auto add(RectType&& rect) -> RectType* override;
 
 		auto add(Numeric width, Numeric height, std::any data) -> RectType*;
+		
+		auto add_bulk(std::span<RectType> rects) -> std::vector<RectType*>;
 
 		auto repack() -> std::vector<RectType> override;
 

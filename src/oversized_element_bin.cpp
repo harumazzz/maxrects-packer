@@ -1,14 +1,12 @@
 #include "oversized_element_bin.h"
 
-namespace MaxRects {
-
+namespace MaxRects {	
 	template<typename RectType, typename Numeric>
 	OversizedElementBin<RectType, Numeric>::OversizedElementBin(const RectType& rect) {
 		this->width = rect.w;
 		this->height = rect.h;
 		this->max_width = rect.w;
 		this->max_height = rect.h;
-		
 		auto oversized_rect = rect;
 		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {
 			oversized_rect.oversized = true;
@@ -17,22 +15,42 @@ namespace MaxRects {
 	}
 
 	template<typename RectType, typename Numeric>
+	OversizedElementBin<RectType, Numeric>::OversizedElementBin(RectType&& rect) {
+		this->width = rect.w;
+		this->height = rect.h;
+		this->max_width = rect.w;
+		this->max_height = rect.h;
+		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {
+			rect.oversized = true;
+		}
+		this->rects.push_back(std::move(rect));
+	}
+
+	template<typename RectType, typename Numeric>
 	OversizedElementBin<RectType, Numeric>::OversizedElementBin(Numeric width, Numeric height, std::any data) {
 		this->width = width;
 		this->height = height;
 		this->max_width = width;
 		this->max_height = height;
-		
-		auto oversized_rect = RectType{width, height};
-		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {
+		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {			
+			auto oversized_rect = RectType{width, height, std::move(data)};
 			oversized_rect.oversized = true;
-			oversized_rect.set_data(std::move(data));
+			this->rects.push_back(std::move(oversized_rect));
+		} else {
+			auto oversized_rect = RectType{width, height};
+			this->rects.push_back(std::move(oversized_rect));
 		}
-		this->rects.push_back(oversized_rect);
 	}
 
 	template<typename RectType, typename Numeric>
 	auto OversizedElementBin<RectType, Numeric>::add(const RectType& rect) -> RectType* {
+		
+		(void)rect;     
+		return nullptr;
+	}
+
+	template<typename RectType, typename Numeric>
+	auto OversizedElementBin<RectType, Numeric>::add(RectType&& rect) -> RectType* {
 		
 		(void)rect;     
 		return nullptr;

@@ -5,7 +5,6 @@
 #include <type_traits>
 
 namespace MaxRects {
-
 	template<typename T>
 	concept number_type = std::is_arithmetic_v<T>;
 
@@ -26,6 +25,15 @@ namespace MaxRects {
 		constexpr Rectangle(Numeric width, Numeric height, Numeric x_pos = Numeric{}, Numeric y_pos = Numeric{}, 
 						bool rotation = false, bool allow_rot = false) noexcept
 			: w{width}, h{height}, x{x_pos}, y{y_pos}, rot{rotation}, allow_rotation{allow_rot} {}
+
+		constexpr Rectangle(Numeric width, Numeric height, std::any user_data, Numeric x_pos = Numeric{}, Numeric y_pos = Numeric{}, 
+						bool rotation = false, bool allow_rot = false) noexcept
+			: w{width}, h{height}, x{x_pos}, y{y_pos}, rot{rotation}, allow_rotation{allow_rot}, data{std::move(user_data)} {}
+
+		Rectangle(const Rectangle&) = default;
+		Rectangle(Rectangle&&) noexcept = default;
+		Rectangle& operator=(const Rectangle&) = default;
+		Rectangle& operator=(Rectangle&&) noexcept = default;
 
 		[[nodiscard]] constexpr auto area() const noexcept -> Numeric;
 

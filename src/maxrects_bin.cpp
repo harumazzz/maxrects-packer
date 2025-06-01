@@ -76,8 +76,7 @@ namespace MaxRects {
 			result_rect.w = rect.h;
 			result_rect.h = rect.w;
 		}
-		
-		this->rects.push_back(result_rect);
+				this->rects.push_back(result_rect);
 		this->set_dirty(true);
 		
 		if (this->options.smart) {
@@ -87,12 +86,89 @@ namespace MaxRects {
 	}
 
 	template<typename RectType, typename Numeric>
-	auto MaxRectsBin<RectType, Numeric>::add(Numeric width, Numeric height, std::any data) -> RectType* {
-		auto rect = RectType{width, height};
-		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {
-			rect.set_data(std::move(data));
+	auto MaxRectsBin<RectType, Numeric>::add(RectType&& rect) -> RectType* {
+		if (this->options.tag && this->options.exclusive_tag) {
+			
 		}
-		return add(rect);
+		auto best_short_side_fit = std::numeric_limits<Numeric>::max();
+		auto best_long_side_fit = std::numeric_limits<Numeric>::max();
+		auto best_area_fit = std::numeric_limits<Numeric>::max();
+
+		auto new_node = Rectangle<Numeric>{};
+
+		if (this->options.logic == PackingLogic::MaxArea) {
+			new_node = find_position_for_new_node_best_area_fit(rect.w, rect.h, best_area_fit, best_short_side_fit);
+		} else if (this->options.logic == PackingLogic::MaxEdge) {
+			new_node = find_position_for_new_node_best_long_side_fit(rect.w, rect.h, best_short_side_fit, best_long_side_fit);
+		} else {
+			new_node = find_position_for_new_node_best_short_side_fit(rect.w, rect.h, best_short_side_fit, best_long_side_fit);
+		}
+		
+		if (new_node.h == Numeric{}) {
+			if (this->options.allow_rotation) {
+				if (this->options.logic == PackingLogic::MaxArea) {
+					new_node = find_position_for_new_node_best_area_fit(rect.h, rect.w, best_area_fit, best_short_side_fit);
+				} else if (this->options.logic == PackingLogic::MaxEdge) {
+					new_node = find_position_for_new_node_best_long_side_fit(rect.h, rect.w, best_short_side_fit, best_long_side_fit);
+				} else {
+					new_node = find_position_for_new_node_best_short_side_fit(rect.h, rect.w, best_short_side_fit, best_long_side_fit);
+				}
+				
+				if (new_node.h != Numeric{}) {
+					new_node.rot = true;
+				}
+			}
+		}
+		
+		if (new_node.h == Numeric{}) {
+			return nullptr;
+		}
+		
+		place_rectangle(new_node);
+		
+		rect.x = new_node.x;
+		rect.y = new_node.y;
+		rect.rot = new_node.rot;
+		if (new_node.rot) {
+			auto temp_w = rect.w;
+			rect.w = rect.h;
+			rect.h = temp_w;
+		}
+		
+		this->rects.push_back(std::move(rect));
+		this->set_dirty(true);
+		
+		if (this->options.smart) {
+			calculate_max_dimensions();
+		}
+		return &this->rects.back();
+	}	template<typename RectType, typename Numeric>
+	auto MaxRectsBin<RectType, Numeric>::add(Numeric width, Numeric height, std::any data) -> RectType* {
+		if constexpr (std::is_same_v<RectType, Rectangle<Numeric>>) {
+			auto rect = RectType{width, height, std::move(data)};
+			return add(std::move(rect));
+		} else {
+			auto rect = RectType{width, height};
+			return add(std::move(rect));
+		}
+	}
+
+	template<typename RectType, typename Numeric>
+	auto MaxRectsBin<RectType, Numeric>::add_bulk(std::span<RectType> rects) -> std::vector<RectType*> {
+		auto results = std::vector<RectType*>{};
+		results.reserve(rects.size());
+		
+		this->rects.reserve(this->rects.size() + rects.size());
+		
+		for (auto& rect : rects) {
+			if (auto* added = add(std::move(rect))) {
+				results.push_back(added);
+			} else {
+				results.push_back(nullptr);
+			}
+		}
+		
+		return results;
 	}
 
 	template<typename RectType, typename Numeric>
@@ -231,27 +307,31 @@ namespace MaxRects {
 			this->height = max_dimension;
 		}
 	}
-
 	template<typename RectType, typename Numeric>
 	auto MaxRectsBin<RectType, Numeric>::repack() -> std::vector<RectType> {
 		auto unpacked = std::vector<RectType>{};
-		reset(false);
-		std::sort(this->rects.begin(), this->rects.end(), [](const auto& a, const auto& b) {
-			const auto result = std::max(b.w, b.h) - std::max(a.w, a.h);
-			return result > Numeric{};
-		});
+		unpacked.reserve(this->rects.size());
 		
-		for (const auto& rect : this->rects) {
-			if (!place(rect).has_value()) {
-				unpacked.push_back(rect);
+		reset(false);
+		auto indices = std::vector<std::size_t>(this->rects.size());
+		for (auto i = std::size_t{0}; i < indices.size(); ++i) {
+			indices[i] = i;
+		}
+		std::sort(indices.begin(), indices.end(), [this](auto& a, auto& b) {
+			const auto max_a = std::max(this->rects[a].w, this->rects[a].h);
+			const auto max_b = std::max(this->rects[b].w, this->rects[b].h);
+			return max_b < max_a;
+		});
+		auto removed_indices = std::vector<std::size_t>{};
+		for (auto idx : indices) {
+			if (!place(this->rects[idx]).has_value()) {
+				unpacked.push_back(this->rects[idx]);
+				removed_indices.push_back(idx);
 			}
 		}
-		
-		for (const auto& rect : unpacked) {
-			auto it = std::find(this->rects.begin(), this->rects.end(), rect);
-			if (it != this->rects.end()) {
-				this->rects.erase(it);
-			}
+		std::sort(removed_indices.begin(), removed_indices.end(), std::greater<std::size_t>());
+		for (auto idx : removed_indices) {
+			this->rects.erase(this->rects.begin() + idx);
 		}
 		
 		return unpacked;
@@ -373,7 +453,6 @@ namespace MaxRects {
 			}
 		}
 	}
-
 	template<typename RectType, typename Numeric>
 	auto MaxRectsBin<RectType, Numeric>::split_free_rect_by_node(const Rectangle<Numeric>& free_rect, const Rectangle<Numeric>& used_node) -> bool {
 		if (used_node.x >= free_rect.x + free_rect.w ||
@@ -383,18 +462,21 @@ namespace MaxRects {
 			return false;
 		}
 		
+		auto new_rects = std::vector<Rectangle<Numeric>>{};
+		new_rects.reserve(4);
+		
 		if (used_node.x < free_rect.x + free_rect.w && used_node.x + used_node.w > free_rect.x) {
 			if (used_node.y > free_rect.y && used_node.y < free_rect.y + free_rect.h) {
 				auto new_node = free_rect;
 				new_node.h = used_node.y - new_node.y;
-				this->free_rectangles.push_back(new_node);
+				new_rects.emplace_back(new_node);
 			}
 			
 			if (used_node.y + used_node.h < free_rect.y + free_rect.h) {
 				auto new_node = free_rect;
 				new_node.y = used_node.y + used_node.h;
 				new_node.h = free_rect.y + free_rect.h - (used_node.y + used_node.h);
-				this->free_rectangles.push_back(new_node);
+				new_rects.emplace_back(new_node);
 			}
 		}
 		
@@ -402,16 +484,20 @@ namespace MaxRects {
 			if (used_node.x > free_rect.x && used_node.x < free_rect.x + free_rect.w) {
 				auto new_node = free_rect;
 				new_node.w = used_node.x - new_node.x;
-				this->free_rectangles.push_back(new_node);
+				new_rects.emplace_back(new_node);
 			}
 			
 			if (used_node.x + used_node.w < free_rect.x + free_rect.w) {
 				auto new_node = free_rect;
 				new_node.x = used_node.x + used_node.w;
 				new_node.w = free_rect.x + free_rect.w - (used_node.x + used_node.w);
-				this->free_rectangles.push_back(new_node);
+				new_rects.emplace_back(new_node);
 			}
 		}
+		
+		this->free_rectangles.insert(this->free_rectangles.end(),
+									std::make_move_iterator(new_rects.begin()),
+									std::make_move_iterator(new_rects.end()));
 		
 		return true;
 	}

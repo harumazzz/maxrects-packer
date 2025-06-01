@@ -44,6 +44,8 @@ namespace MaxRects {
 		virtual ~AbstractBin() = default;
 
 		virtual auto add(const RectType& rect) -> RectType* = 0;
+		
+		virtual auto add(RectType&& rect) -> RectType* = 0;
 
 		virtual auto repack() -> std::vector<RectType> = 0;
 

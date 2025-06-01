@@ -6,10 +6,15 @@ namespace MaxRects {
 
 	template<typename RectType = Rectangle<float>, typename Numeric = float>
 	class OversizedElementBin : public AbstractBin<RectType, Numeric> {
-	public:
-		explicit OversizedElementBin(const RectType& rect);    explicit OversizedElementBin(Numeric width, Numeric height, std::any data = {});
+	public:		explicit OversizedElementBin(const RectType& rect);
+		
+		explicit OversizedElementBin(RectType&& rect);
+
+		explicit OversizedElementBin(Numeric width, Numeric height, std::any data = {});
 
 		auto add(const RectType&) -> RectType* override;
+		
+		auto add(RectType&&) -> RectType* override;
 		
 		auto add(Numeric width, Numeric height, std::any data) -> RectType*;
 

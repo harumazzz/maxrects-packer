@@ -21,12 +21,11 @@ namespace MaxRects {
 			other.x + other.w <= x + w &&
 			other.y + other.h <= y + h;
 	}
-
 	template<typename Numeric>
 	constexpr auto Rectangle<Numeric>::set_width(Numeric new_width) noexcept -> void {
 		if (new_width != w) {
 			w = new_width;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
 
@@ -34,7 +33,7 @@ namespace MaxRects {
 	constexpr auto Rectangle<Numeric>::set_height(Numeric new_height) noexcept -> void {
 		if (new_height != h) {
 			h = new_height;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
 
@@ -42,7 +41,7 @@ namespace MaxRects {
 	constexpr auto Rectangle<Numeric>::set_x(Numeric new_x) noexcept -> void {
 		if (new_x != x) {
 			x = new_x;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
 
@@ -50,20 +49,17 @@ namespace MaxRects {
 	constexpr auto Rectangle<Numeric>::set_y(Numeric new_y) noexcept -> void {
 		if (new_y != y) {
 			y = new_y;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
-
 	template<typename Numeric>
 	constexpr auto Rectangle<Numeric>::set_rotation(bool new_rot) noexcept -> void {
 		if (!allow_rotation) return;
 		
 		if (rot != new_rot) {
-			const auto tmp = w;
-			w = h;
-			h = tmp;
+			std::swap(w, h);
 			rot = new_rot;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
 
@@ -71,24 +67,27 @@ namespace MaxRects {
 	constexpr auto Rectangle<Numeric>::set_allow_rotation(bool allow_rot) noexcept -> void {
 		if (allow_rotation != allow_rot) {
 			allow_rotation = allow_rot;
-			dirty_counter = dirty_counter + std::size_t{1};
+			++dirty_counter;
 		}
 	}
-
 	template<typename Numeric>
 	auto Rectangle<Numeric>::set_data(std::any new_data) -> void {
-		data = std::move(new_data);
-		dirty_counter = dirty_counter + std::size_t{1};
+		if (data.has_value() != new_data.has_value() || 
+			(data.has_value() && data.type() != new_data.type())) {
+			data = std::move(new_data);
+			++dirty_counter;
+		} else {
+			data = std::move(new_data);
+		}
 	}
 
 	template<typename Numeric>
 	constexpr auto Rectangle<Numeric>::is_dirty() const noexcept -> bool {
 		return dirty_counter > std::size_t{};
 	}
-
 	template<typename Numeric>
 	constexpr auto Rectangle<Numeric>::set_dirty(bool is_dirty) noexcept -> void {
-		dirty_counter = is_dirty ? dirty_counter + std::size_t{1} : std::size_t{};
+		dirty_counter = is_dirty ? dirty_counter + std::size_t{1} : std::size_t{0};
 	}
 
 	template<typename Numeric>
